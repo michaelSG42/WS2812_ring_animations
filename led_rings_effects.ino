@@ -24,13 +24,13 @@ const int LAST_RING[]   =   {0,
 
 CRGB leds[NUM_LEDS];
 
-// define parameters for delay, counter and directions
+// parameters for delay, counter and directions
 int delay_counter;
 int current_delay       =   30;
 int rounds_counter;
 bool current_direction  =   false;
 
-// define parameters for color, brigthness and current/previous LEDs
+// parameters for color, brigthness and current/previous LEDs
 uint8_t current_color   =   160;
 uint8_t current_bright  =   30;
 uint8_t current_led;
@@ -39,16 +39,26 @@ uint8_t current_led_ring[5];
 uint8_t previous_led_ring[5];
 uint8_t led_bright[NUM_LEDS];
 
+// input and animation control
+char input_command;
+char current_animation  =   '1';
+
 
 void setup() {
 
+  Serial.begin(9600);
+  Serial.println("Welcome: Effects LED Ring Set WS 2812");
+  print_effects_and_commands();
+
   // initialize LEDs
-  delay(300);
+  // delay(300);
   FastLED.addLeds<LED_TYPE, LED_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   
 }
 
 void loop() {
+
+  getInput();
 
   if (delay_counter >= current_delay) {
     leds_in_circles();
@@ -62,15 +72,51 @@ void loop() {
 
 }
 
+void getInput() {
+
+  input_command = char(Serial.read());
+  
+  switch(input_command) {
+    case '?':
+      print_effects_and_commands();
+      break;
+      
+    case '1':
+    case '2':
+      if (input_command != current_animation) {
+        current_animation = input_command;
+        Serial.print("Current animation (? List): ");
+        Serial.println(current_animation);
+      }
+      else {
+        Serial.print("Animation not changed (? List): ");
+        Serial.println(current_animation);
+
+      }
+      break;
+
+    case -1:
+    case 0:
+    case '\n':
+    case '\r':
+      // ignore input:
+      break;
+      
+    default:
+        Serial.print("Invalid input ignored (? List): ");
+        Serial.println(input_command);
+  }
+}
+
 void leds_in_circles() {
 
-  // LEDS circling in all rings
+  // LEDs circling in all rings
 
   if (rounds_counter < 4) {
     led_step(LAST_RING[4 - rounds_counter]);
   } 
   else {
-    fade_in_out(0, 0, 33, 3);
+    fade_in_out(0, 0, current_bright + 3, 3);
   }
 
   for (int i = rounds_counter; i > 0; i--) {
@@ -133,7 +179,19 @@ void fade_in_out(int fade_led, int b_min, int b_max, int fade_step) {
   else {
     led_bright[fade_led]-= fade_step;
   }
+  
   leds[fade_led] = ColorFromPalette( RainbowColors_p, current_color, led_bright[fade_led], LINEARBLEND);    
+  
+}
+
+void print_effects_and_commands() {
+  
+  Serial.println();
+  Serial.println("---------- Animations ----------");
+  Serial.println("1: LEDs circling in all rings");
+  Serial.println("--------------------------------");
+  Serial.print("Current animation (? List): ");
+  Serial.println(current_animation);
   
 }
 
