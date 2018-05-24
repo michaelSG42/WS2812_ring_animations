@@ -8,6 +8,7 @@
 #define LED_PIN             10
 
 // define number of LEDs, first and last per ring
+const int NUM_RINGS     =   5;
 const int NUM_LEDS      =   61;
 const int LAST_LED      =   NUM_LEDS - 1;
 const int LEDS_RING[]   =   {1, 8, 12, 16, 24};
@@ -24,11 +25,12 @@ const int LAST_RING[]   =   {0,
 
 CRGB leds[NUM_LEDS];
 
-// parameters for delay, counter and directions
+// parameters for delay, counter, directions and steps
 int delay_counter;
 int current_delay       =   30;
 int rounds_counter;
 bool current_direction  =   false;
+uint8_t color_step      =   20;
 
 // parameters for color, brigthness and current/previous LEDs
 uint8_t current_color   =   160;
@@ -38,6 +40,8 @@ uint8_t previous_led;
 uint8_t current_led_ring[5];
 uint8_t previous_led_ring[5];
 uint8_t led_bright[NUM_LEDS];
+uint8_t led_color[NUM_LEDS];
+uint8_t ring_color[NUM_RINGS];
 
 // input and animation control
 char input_command;
@@ -61,9 +65,21 @@ void loop() {
   getInput();
 
   if (delay_counter >= current_delay) {
-    leds_in_circles();
+
+    switch(current_animation) {
+      case '1':
+        leds_in_circles();
+        break;
+      case '2':
+        psychodelic_rainbow(current_bright/3);
+        break;
+      default:
+        break;
+    }
+    
     delay_counter = 0;
   }
+  
   else {
     delay_counter++;
   }
@@ -85,6 +101,7 @@ void getInput() {
     case '2':
       if (input_command != current_animation) {
         current_animation = input_command;
+        reset();
         Serial.print("Current animation (? List): ");
         Serial.println(current_animation);
       }
@@ -128,6 +145,31 @@ void leds_in_circles() {
     current_led = 0;
   }
   
+}
+
+void psychodelic_rainbow(int brightness) {
+
+  for (int i = NUM_RINGS - 1; i >= 0; i--) {
+    for (int j = FIRST_RING[i]; j <= LAST_RING[i]; j++) {
+      leds[j] = ColorFromPalette( RainbowColors_p, ring_color[i], brightness, LINEARBLEND); 
+    }
+    if (i < NUM_RINGS - 1) {
+      ring_color[i + 1] = ring_color[i];
+    }
+    if (ring_color[i] + color_step >= 255) {
+      current_direction = true;
+    }
+    if (ring_color[i] <= color_step) {
+      current_direction = false;
+    }
+    if (current_direction) {
+      ring_color[i]-=color_step;
+    }
+    else {
+      ring_color[i]+=color_step;
+    }
+  }
+
 }
 
 void led_step (int last) {
@@ -189,9 +231,31 @@ void print_effects_and_commands() {
   Serial.println();
   Serial.println("---------- Animations ----------");
   Serial.println("1: LEDs circling in all rings");
+  Serial.println("2: Psychodelic Rainbow");
   Serial.println("--------------------------------");
   Serial.print("Current animation (? List): ");
   Serial.println(current_animation);
   
+}
+
+void reset() {
+
+  rounds_counter      =   0;
+  current_direction   =   false;
+  current_color       =   160;
+  current_bright      =   30;
+  current_led         =   0;
+  previous_led        =   0;
+  for (int i = 0; i < NUM_RINGS; i++) {
+    current_led_ring[i] = FIRST_RING[i];
+    previous_led_ring[i] = FIRST_RING[i];
+    ring_color[i] = current_color;
+  }
+  for (int i = 0; i < NUM_LEDS; i++) {
+    led_bright[i] = 0;
+    led_color[i]  = 0;
+    leds[i] = ColorFromPalette( RainbowColors_p, current_color, 0, LINEARBLEND);
+  }
+
 }
 
